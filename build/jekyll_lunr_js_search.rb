@@ -1,3 +1,56 @@
+require 'nokogiri'
+
+module Jekyll
+  module LunrJsSearch
+    class PageRenderer
+      def initialize(site)
+        @site = site
+      end
+      
+      # render item, but without using its layout
+      def prepare(item)
+        layout = item.data["layout"]
+        begin
+          item.data["layout"] = nil
+
+          if item.is_a?(Jekyll::Document)          
+            output = Jekyll::Renderer.new(@site, item).run
+          else
+            item.render({}, @site.site_payload)
+            output = item.output  
+          end
+        ensure
+          # restore original layout
+          item.data["layout"] = layout
+        end
+      
+        output
+      end
+
+      # render the item, parse the output and get all text inside <p> elements
+      def render(item)
+        layoutless = item.dup
+
+        Nokogiri::HTML(prepare(layoutless)).text
+      end
+    end
+  end  
+end
+module Jekyll
+  module LunrJsSearch
+    VERSION = "3.3.0"
+  end
+end
+module Jekyll
+  module LunrJsSearch  
+    class SearchIndexFile < Jekyll::StaticFile
+      # Override write as the index.json index file has already been created 
+      def write(dest)
+        true
+      end
+    end
+  end
+end
 require 'fileutils'
 require 'net/http'
 require 'json'
@@ -145,56 +198,6 @@ module Jekyll
     end
   end
 end
-require "v8"
-require "json"
-
-class V8::Object
-  def to_json
-    @context['JSON']['stringify'].call(self)
-  end
-
-  def to_hash
-    JSON.parse(to_json, :max_nesting => false)
-  end
-end
-require 'nokogiri'
-
-module Jekyll
-  module LunrJsSearch
-    class PageRenderer
-      def initialize(site)
-        @site = site
-      end
-      
-      # render item, but without using its layout
-      def prepare(item)
-        layout = item.data["layout"]
-        begin
-          item.data.delete("layout")
-
-          if item.is_a?(Jekyll::Document)          
-            output = Jekyll::Renderer.new(@site, item).run
-          else
-            item.render({}, @site.site_payload)
-            output = item.output  
-          end
-        ensure
-          # restore original layout
-          item.data["layout"] = layout
-        end
-      
-        output
-      end
-
-      # render the item, parse the output and get all text inside <p> elements
-      def render(item)
-        layoutless = item.dup
-
-        Nokogiri::HTML(prepare(layoutless)).text
-      end
-    end
-  end  
-end
 require 'nokogiri'
 
 module Jekyll
@@ -244,18 +247,15 @@ module Jekyll
     end
   end
 end
-module Jekyll
-  module LunrJsSearch  
-    class SearchIndexFile < Jekyll::StaticFile
-      # Override write as the index.json index file has already been created 
-      def write(dest)
-        true
-      end
-    end
+require "v8"
+require "json"
+
+class V8::Object
+  def to_json
+    @context['JSON']['stringify'].call(self)
   end
-end
-module Jekyll
-  module LunrJsSearch
-    VERSION = "3.3.0"
+
+  def to_hash
+    JSON.parse(to_json, :max_nesting => false)
   end
 end
